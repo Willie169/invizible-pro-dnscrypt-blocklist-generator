@@ -1,0 +1,40 @@
+name: dnscrypt-blocklist-generator
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  push:
+    paths:
+      - ".github/workflows/dnscrypt-blocklist-generator.yml"
+      - "domains-blocklist.conf"
+      - "domains-allowlist.txt"
+      - "generate-domains-blocklist.py"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Generate blocklist
+        run: /bin/python3 generate-domains-blocklist.py -o blocklist.txt -a domains-allowlist.txt
+      - name: Commit and push changes
+        run: |
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan new-root
+          git add -A
+          git commit -m "$(date -u --iso-8601=seconds)"
+          git branch -M main
+          git push --force origin main
